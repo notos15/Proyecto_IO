@@ -44,9 +44,40 @@ class MarkovApp:
         )
         self.result_label.pack(expand=True)
 
-        # Pestaña simulación
-        self.simulacion_output = tk.Text(self.tab_simulacion, width=70, height=22)
-        self.simulacion_output.pack(padx=10, pady=10)
+        # ---------- TABLA SIMULACIÓN ----------
+        self.sim_frame = ttk.Frame(self.tab_simulacion)
+        self.sim_frame.pack(fill="both", expand=True)
+
+        self.sim_scroll = ttk.Scrollbar(self.sim_frame)
+        self.sim_scroll.pack(side="right", fill="y")
+
+        self.sim_table = ttk.Treeview(
+            self.sim_frame,
+            yscrollcommand=self.sim_scroll.set,
+            columns=("t","N","Lq","estado","W","L","P0","Tinest"),
+            show="headings",
+            height=18
+        )
+
+        self.sim_scroll.config(command=self.sim_table.yview)
+
+        # Encabezados
+        encabezados = {
+            "t": "Tiempo (min)",
+            "N": "N(t)",
+            "Lq": "Lq(t)",
+            "estado": "Estado",
+            "W": "W",
+            "L": "L",
+            "P0": "P0",
+            "Tinest": "T inestable"
+        }
+
+        for col, nombre in encabezados.items():
+            self.sim_table.heading(col, text=nombre)
+            self.sim_table.column(col, width=90, anchor="center")
+
+        self.sim_table.pack(fill="both", expand=True)
 
         # Pestaña análisis
         self.analisis_label = tk.Text(self.tab_analisis, width=70, height=22)
@@ -72,11 +103,7 @@ ANÁLISIS DEL MODELO
         matrix_frame = ttk.Frame(self.left_frame)
         matrix_frame.pack(pady=5)
 
-        # MATRIZ POR DEFECTO
-        P_default = [
-            [0.8, 0.2],
-            [0.4, 0.6]
-        ]
+        P_default = [[0.8, 0.2],[0.4, 0.6]]
 
         self.matrix_entries = []
         for i in range(2):
@@ -88,36 +115,30 @@ ANÁLISIS DEL MODELO
                 row.append(e)
             self.matrix_entries.append(row)
 
-        # --- Otros datos ---
-        ttk.Label(self.left_frame, text="λ (tasa de llegada):").pack(anchor="w", pady=2)
-        self.lambda_entry = ttk.Entry(self.left_frame)
-        self.lambda_entry.insert(0, "5")
-        self.lambda_entry.pack(fill="x", pady=2)
+        # Parámetros
+        etiquetas = [
+            ("λ (tasa de llegada):", "5"),
+            ("μ (tasa de servicio):", "4"),
+            ("Estado 1 (c₁):", "2"),
+            ("Estado 2 (c₂):", "1"),
+            ("t (tiempo simulación, min):", "5")
+        ]
 
-        ttk.Label(self.left_frame, text="μ (tasa de servicio):").pack(anchor="w", pady=2)
-        self.mu_entry = ttk.Entry(self.left_frame)
-        self.mu_entry.insert(0, "4")
-        self.mu_entry.pack(fill="x", pady=2)
+        self.lambda_entry = self.agregar_entry(etiquetas[0])
+        self.mu_entry     = self.agregar_entry(etiquetas[1])
+        self.c1_entry     = self.agregar_entry(etiquetas[2])
+        self.c2_entry     = self.agregar_entry(etiquetas[3])
+        self.t_entry      = self.agregar_entry(etiquetas[4])
 
-        ttk.Label(self.left_frame, text="Estado 1 (c₁):").pack(anchor="w")
-        self.c1_entry = ttk.Entry(self.left_frame)
-        self.c1_entry.insert(0, "2")
-        self.c1_entry.pack(fill="x", pady=2)
-
-        ttk.Label(self.left_frame, text="Estado 2 (c₂):").pack(anchor="w")
-        self.c2_entry = ttk.Entry(self.left_frame)
-        self.c2_entry.insert(0, "1")
-        self.c2_entry.pack(fill="x", pady=2)
-
-        # ----------- NUEVO CAMPO: TIEMPO t -----------
-        ttk.Label(self.left_frame, text="t (tiempo simulación, min):").pack(anchor="w", pady=2)
-        self.t_entry = ttk.Entry(self.left_frame)
-        self.t_entry.insert(0, "5")  # valor por defecto
-        self.t_entry.pack(fill="x", pady=2)
-
-        # Botón calcular
         ttk.Button(self.left_frame, text="Calcular", command=self.calculate).pack(pady=10)
 
+    def agregar_entry(self, data):
+        label, valor = data
+        ttk.Label(self.left_frame, text=label).pack(anchor="w", pady=2)
+        entry = ttk.Entry(self.left_frame)
+        entry.insert(0, valor)
+        entry.pack(fill="x", pady=2)
+        return entry
 
     # -----------------------------------------------------
     # FUNCIÓN PRINCIPAL DE CÁLCULO
@@ -127,52 +148,48 @@ ANÁLISIS DEL MODELO
             # Obtener matriz P
             P = [[float(self.matrix_entries[i][j].get()) for j in range(2)] for i in range(2)]
 
-            # Parámetros
             lam = float(self.lambda_entry.get())
             mu = float(self.mu_entry.get())
             c1 = int(self.c1_entry.get())
             c2 = int(self.c2_entry.get())
             total_minutes = float(self.t_entry.get())
 
-            # ---------- A) Calcular π ----------
+            # ---- A) Calcular π ----
             pi = calculos.calcular_pi(P)
 
-            # ---------- B.1) Intensidad ----------
+            # ---- B) Cálculos teóricos ----
             p1 = calculos.calcular_intensidades(lam, mu, c1)
             p2 = calculos.calcular_intensidades(lam, mu, c2)
-            p_ponderado = pi[0] * p1 + pi[1] * p2
+            p_pond = pi[0]*p1 + pi[1]*p2
 
-            # ---------- B.2) L ponderado ----------
             l1 = calculos.calcular_clientes(lam, mu, p1, c1)
             l2 = calculos.calcular_clientes(lam, mu, p2, c2)
-            L_pond = pi[0] * l1 + pi[1] * l2
-
-            # ---------- B.3) W ponderado ----------
+            L_pond = pi[0]*l1 + pi[1]*l2
             W_pond = L_pond / lam
 
-            # ---------- Mostrar en Cálculos ----------
-            texto = (
+            # Mostrar en cálculos
+            self.result_label.config(text=
                 f"π = [{pi[0]:.4f}, {pi[1]:.4f}]\n\n"
-                f"p ponderado = {p_ponderado:.4f}\n"
+                f"p ponderado = {p_pond:.4f}\n"
                 f"L ponderado = {L_pond:.4f}\n"
                 f"W ponderado = {W_pond:.4f}\n"
                 f"(Simulación con t = {total_minutes} min)"
             )
-            self.result_label.config(text=texto)
 
-            # ---------- Ejecutar simulación ----------
-            texto_sim = simulacion.simular(
-                lam=lam,
-                mu=mu,
-                P=P,
-                c1=c1,
-                c2=c2,
-                total_minutes=total_minutes
-            )
+            # ---- Simulación ----
+            texto_sim = simulacion.simular(lam, mu, P, c1, c2, total_minutes)
 
-            # Mostrar salida simulación
-            self.simulacion_output.delete("1.0", tk.END)
-            self.simulacion_output.insert(tk.END, texto_sim)
+            # Limpiar tabla
+            for item in self.sim_table.get_children():
+                self.sim_table.delete(item)
+
+            # Insertar registros
+            for row in texto_sim:
+                self.sim_table.insert("", "end", values=(
+                    row["t"], row["N"], row["Lq"], row["estado"],
+                    f"{row['W']:.4f}", f"{row['L']:.4f}",
+                    f"{row['P0']:.4f}", f"{row['T_inestable']:.4f}"
+                ))
 
         except Exception as e:
             self.result_label.config(text=f"⚠️ Error: {e}")
