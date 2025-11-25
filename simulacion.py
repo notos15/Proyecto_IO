@@ -29,6 +29,10 @@ def simular(lam, mu, P, c1, c2, total_minutes):
     suma_W = 0.0
     clientes_completados = 0
 
+    # Para T_inestable CORREGIDO
+    tiempo_estabilizacion = None
+    epsilon = 0.05  # 5% de tolerancia
+
     # Eventos iniciales
     eventos.append(("llegada", random.expovariate(lam), None))
     eventos.append(("cambio_estado", 5.0, None))
@@ -68,6 +72,12 @@ def simular(lam, mu, P, c1, c2, total_minutes):
 
         tiempo = t_evento
         ultimo_tiempo = tiempo
+
+        # ===== VERIFICAR ESTABILIZACIÓN (NUEVO) =====
+        if tiempo_estabilizacion is None and tiempo > 30:  # Esperar al menos 30 min
+            proporcion_estado1_actual = tiempo_estado1 / tiempo
+            if abs(proporcion_estado1_actual - 2/3) < epsilon:
+                tiempo_estabilizacion = tiempo
 
         # ===== PROCESAR EVENTOS =====
         if tipo == "llegada":
@@ -109,7 +119,12 @@ def simular(lam, mu, P, c1, c2, total_minutes):
             L_prom = area_N / tiempo if tiempo > 0 else 0
             W_prom = suma_W / clientes_completados if clientes_completados > 0 else 0
             P0_prom = tiempo_vacio / tiempo if tiempo > 0 else 0
-            T_inst = min(tiempo, 60.0)
+            
+            # T_inestable CORREGIDO
+            if tiempo_estabilizacion is not None:
+                T_inst = tiempo_estabilizacion
+            else:
+                T_inst = tiempo  # Si no se ha estabilizado, es el tiempo actual
 
             registros.append({
                 "t": tiempo,
@@ -160,7 +175,12 @@ def simular(lam, mu, P, c1, c2, total_minutes):
         L_prom = area_N / total_minutes
         W_prom = suma_W / clientes_completados if clientes_completados > 0 else 0
         P0_prom = tiempo_vacio / total_minutes
-        T_inst = min(total_minutes, 60.0)
+        
+        # T_inestable CORREGIDO (final)
+        if tiempo_estabilizacion is not None:
+            T_inst = tiempo_estabilizacion
+        else:
+            T_inst = total_minutes  # Si nunca se estabilizó, es el tiempo total
 
         registros.append({
             "t": total_minutes,
