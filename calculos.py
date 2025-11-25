@@ -58,7 +58,3 @@ def calcular_clientes(lam,mu,p,c):
     return (Lq+a)
 
 
-# Calcular W
-
-#-----------------------------------------------------------------------------------
-#pregunta 3
