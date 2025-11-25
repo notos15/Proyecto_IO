@@ -2,12 +2,13 @@ import tkinter as tk
 from tkinter import ttk
 import calculos  
 import simulacion
+import graficos
 
 class MarkovApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Modelo de Colas - Cadena de Markov")
-        self.root.geometry("900x450")
+        self.root.geometry("1000x500")
 
         # ---------------- PANEL IZQUIERDO (FIJO) ----------------
         self.left_frame = ttk.Frame(self.root, padding=10)
@@ -27,17 +28,19 @@ class MarkovApp:
         self.tab_calculos = ttk.Frame(self.notebook)
         self.tab_simulacion = ttk.Frame(self.notebook)
         self.tab_analisis = ttk.Frame(self.notebook)
+        self.tab_grafico = ttk.Frame(self.notebook)
 
         self.notebook.add(self.tab_calculos, text="Cálculos")
         self.notebook.add(self.tab_simulacion, text="Simulación")
         self.notebook.add(self.tab_analisis, text="Análisis")
+        self.notebook.add(self.tab_grafico, text="Gráfico")
 
         # ---------------- CONTENIDO DE CADA PESTAÑA ----------------
 
         # Pestaña cálculos → solo resultados
         self.result_label = ttk.Label(
             self.tab_calculos,
-            text="",
+            text="Haz clic en 'Calcular' para ver los resultados",
             font=("Arial", 12, "bold"),
             anchor="center",
             justify="center"
@@ -92,12 +95,18 @@ ANÁLISIS DEL MODELO
         """
         )
 
+        # ---------- PESTAÑA GRÁFICO ----------
+        self.grafico_manager = graficos.GraficoEstados(self.tab_grafico)
+        self.grafico_manager.configurar_grafico()
+        self.grafico_manager.crear_canvas()
+
+        # Variable para almacenar datos de simulación
+        self.datos_simulacion_actual = None
 
     # -----------------------------------------------------
     # PANEL IZQUIERDO
     # -----------------------------------------------------
     def create_left_panel(self):
-
         ttk.Label(self.left_frame, text="Matriz P", font=("Arial", 12, "bold")).pack(pady=5)
 
         matrix_frame = ttk.Frame(self.left_frame)
@@ -121,7 +130,7 @@ ANÁLISIS DEL MODELO
             ("μ (tasa de servicio):", "4"),
             ("Estado 1 (c₁):", "2"),
             ("Estado 2 (c₂):", "1"),
-            ("t (tiempo simulación, min):", "5")
+            ("t (tiempo simulación, min):", "480")
         ]
 
         self.lambda_entry = self.agregar_entry(etiquetas[0])
@@ -158,42 +167,49 @@ ANÁLISIS DEL MODELO
             pi = calculos.calcular_pi(P)
 
             # ---- B) Cálculos teóricos ----
-            p1 = calculos.calcular_intensidades(lam, mu, c1)
-            p2 = calculos.calcular_intensidades(lam, mu, c2)
-            p_pond = pi[0]*p1 + pi[1]*p2
-
-            l1 = calculos.calcular_clientes(lam, mu, p1, c1)
-            l2 = calculos.calcular_clientes(lam, mu, p2, c2)
-            L_pond = pi[0]*l1 + pi[1]*l2
-            W_pond = L_pond / lam
+            rho_pond, L_pond, W_pond = calculos.calcular_metricas_ponderadas(lam, mu, pi, c1, c2)
+            
+            # Formatear resultados
+            if L_pond == float('inf') or W_pond == float('inf'):
+                L_text = "∞"
+                W_text = "∞"
+                W_minutos = "∞"
+            else:
+                L_text = f"{L_pond:.4f}"
+                W_text = f"{W_pond:.4f}"
+                W_minutos = f"{W_pond*60:.4f}"
 
             # Mostrar en cálculos
             self.result_label.config(text=
                 f"π = [{pi[0]:.4f}, {pi[1]:.4f}]\n\n"
-                f"p ponderado = {p_pond:.4f}\n"
-                f"L ponderado = {L_pond:.4f}\n"
-                f"W ponderado = {W_pond:.4f}\n"
+                f"ρ ponderado = {rho_pond:.4f}\n"
+                f"L ponderado = {L_text}\n"
+                f"W ponderado = {W_text} horas\n"
+                f"W ponderado = {W_minutos} minutos\n"
                 f"(Simulación con t = {total_minutes} min)"
             )
 
             # ---- Simulación ----
-            texto_sim = simulacion.simular(lam, mu, P, c1, c2, total_minutes)
+            self.datos_simulacion_actual = simulacion.simular(lam, mu, P, c1, c2, total_minutes)
 
             # Limpiar tabla
             for item in self.sim_table.get_children():
                 self.sim_table.delete(item)
 
             # Insertar registros
-            for row in texto_sim:
+            for row in self.datos_simulacion_actual:
                 self.sim_table.insert("", "end", values=(
                     row["t"], row["N"], row["Lq"], row["estado"],
                     f"{row['W']:.4f}", f"{row['L']:.4f}",
                     f"{row['P0']:.4f}", f"{row['T_inestable']:.4f}"
                 ))
 
+            # ---- Actualizar gráfico ----
+            self.grafico_manager.actualizar_datos(self.datos_simulacion_actual)
+            self.grafico_manager.generar_grafico()
+
         except Exception as e:
             self.result_label.config(text=f"⚠️ Error: {e}")
-
 
 # --- Ejecutar aplicación ---
 if __name__ == "__main__":
