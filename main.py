@@ -27,12 +27,10 @@ class MarkovApp:
         # ---- Crear pestañas ----
         self.tab_calculos = ttk.Frame(self.notebook)
         self.tab_simulacion = ttk.Frame(self.notebook)
-        self.tab_analisis = ttk.Frame(self.notebook)
         self.tab_grafico = ttk.Frame(self.notebook)
 
         self.notebook.add(self.tab_calculos, text="Cálculos")
         self.notebook.add(self.tab_simulacion, text="Simulación")
-        self.notebook.add(self.tab_analisis, text="Análisis")
         self.notebook.add(self.tab_grafico, text="Gráfico")
 
         # ---------------- CONTENIDO DE CADA PESTAÑA ----------------
@@ -83,17 +81,7 @@ class MarkovApp:
         self.sim_table.pack(fill="both", expand=True)
 
         # Pestaña análisis
-        self.analisis_label = tk.Text(self.tab_analisis, width=70, height=22)
-        self.analisis_label.pack(padx=10, pady=10)
-        self.analisis_label.insert(tk.END,
-        """
-ANÁLISIS DEL MODELO
-
-• d) Estabilidad del sistema
-• e) Comparación entre cálculos y simulación
-• Interpretación del tiempo en estado inestable
-        """
-        )
+        
 
         # ---------- PESTAÑA GRÁFICO ----------
         self.grafico_manager = graficos.GraficoEstados(self.tab_grafico)
@@ -167,25 +155,21 @@ ANÁLISIS DEL MODELO
             pi = calculos.calcular_pi(P)
 
             # ---- B) Cálculos teóricos ----
-            rho_pond, L_pond, W_pond = calculos.calcular_metricas_ponderadas(lam, mu, pi, c1, c2)
-            
-            # Formatear resultados
-            if L_pond == float('inf') or W_pond == float('inf'):
-                L_text = "∞"
-                W_text = "∞"
-                W_minutos = "∞"
-            else:
-                L_text = f"{L_pond:.4f}"
-                W_text = f"{W_pond:.4f}"
-                W_minutos = f"{W_pond*60:.4f}"
+            p1 = calculos.calcular_intensidades(lam, mu, c1)
+            p2 = calculos.calcular_intensidades(lam, mu, c2)
+            p_pond = pi[0]*p1 + pi[1]*p2
+
+            l1 = calculos.calcular_clientes(lam, mu, p1, c1)
+            l2 = calculos.calcular_clientes(lam, mu, p2, c2)
+            L_pond = pi[0]*l1 + pi[1]*l2
+            W_pond = L_pond / lam
 
             # Mostrar en cálculos
             self.result_label.config(text=
                 f"π = [{pi[0]:.4f}, {pi[1]:.4f}]\n\n"
-                f"ρ ponderado = {rho_pond:.4f}\n"
-                f"L ponderado = {L_text}\n"
-                f"W ponderado = {W_text} horas\n"
-                f"W ponderado = {W_minutos} minutos\n"
+                f"p ponderado = {p_pond:.4f}\n"
+                f"L ponderado = {L_pond:.4f}\n"
+                f"W ponderado = {W_pond:.4f}\n"
                 f"(Simulación con t = {total_minutes} min)"
             )
 
