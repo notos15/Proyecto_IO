@@ -85,8 +85,6 @@ class MarkovApp:
 
         # ---------- PESTAÑA GRÁFICO ----------
         self.grafico_manager = graficos.GraficoEstados(self.tab_grafico)
-        self.grafico_manager.configurar_grafico()
-        self.grafico_manager.crear_canvas()
 
         # Variable para almacenar datos de simulación
         self.datos_simulacion_actual = None
