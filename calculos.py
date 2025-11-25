@@ -3,21 +3,27 @@ import math
 # Pregunta a
 def calcular_pi(P):
     """
-    Calcula la distribución estacionaria π para una matriz de transición P.
-    P debe ser una matriz cuadrada (lista de listas o np.array).
-    Retorna un vector numpy con las probabilidades estacionarias.
+    Calcula la distribución estacionaria π de una cadena de 2 estados
+    usando el sistema clásico de 3 ecuaciones:
+        π1 = π1*p11 + π2*p21
+        π2 = π1*p12 + π2*p22
+        π1 + π2 = 1
     """
-    P = np.array(P, dtype=float)
-    n = P.shape[0]
+    p11, p12 = P[0]
+    p21, p22 = P[1]
 
-    # Ecuación: πP = π  →  (Pᵗ - I)ᵗ π = 0  →  (Pᵗ - I)π = 0
-    # Añadimos la restricción sum(π)=1 para resolver el sistema lineal
-    A = np.transpose(P) - np.eye(n)
-    A = np.vstack([A, np.ones(n)])
-    b = np.zeros(n + 1)
-    b[-1] = 1  # condición de normalización
-
-    # Resolver el sistema
+    # Construir el sistema A * π = b
+    # Ecuaciones:
+    # π1 - π1*p11 - π2*p21 = 0
+    # π2 - π1*p12 - π2*p22 = 0
+    # π1 + π2 = 1
+    A = np.array([
+        [1 - p11,   -p21     ],
+        [ -p12,     1 - p22  ],
+        [1,          1       ]
+    ], dtype=float)
+    b = np.array([0, 0, 1], dtype=float)
+    # Resolver el sistema lineal
     pi = np.linalg.lstsq(A, b, rcond=None)[0]
     return pi
 #-----------------------------------------------------------------------------------
